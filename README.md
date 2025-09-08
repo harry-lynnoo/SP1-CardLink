@@ -40,11 +40,12 @@ I love blending **clean design** with a touch of 🌲 kawai energy ⛩️.
 ## 🐰 How to Run
 ```bash
 # clone repo
-git clone https://github.com/<your-username>/sp1-cardlink-hyan.git
+git clone https://github.com/heinhtetmoetun/SP1-CardLink
 
 # install deps
 cd sp1-cardlink-hyan
 npm install
+do not forget to install modules ^^
 
 # start app
 npx expo start
