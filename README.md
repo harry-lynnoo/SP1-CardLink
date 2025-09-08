@@ -6,18 +6,30 @@ Powered by **React Native (Expo)**, **Node.js / Express**, **MongoDB**, and **Cl
 ---
 
 ## 🐰 Features
-- 🌲 Capture business cards with camera  
-- ⛩️ OCR + NLP for accurate field extraction  
-- 🌲 Organize, search, and favorite contacts  
-- 🏯 Cloud image storage with Cloudinary  
-- 🌲 Secure token-based authentication  
+- 🥕 Capture business cards with camera  
+- 🥕 OCR + NLP for accurate field extraction  
+- 🥕 Organize, search, and favorite contacts  
+- 🥕 Cloud image storage with Cloudinary  
+- 🥕� Secure token-based authentication  
 
 ---
 
 ## 🐰 Screenshots
-| 🌲 Splash | ⛩️ Home | 🏯 Contacts | 🍵 Scan |
-|-----------|---------|-------------|--------|
-| ![splash](docs/screenshots/splash.png) | ![home](docs/screenshots/home.png) | ![contacts](docs/screenshots/contacts.png) | ![scan](docs/screenshots/scan.png) |
+
+<table>
+  <tr>
+    <th>🥕 Splash</th>
+    <th>🥕 Home</th>
+    <th>🥕 Contacts</th>
+    <th>🥕 Scan</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/obd.PNG" width="200"/></td>
+    <td><img src="docs/screenshots/hme.PNG" width="200"/></td>
+    <td><img src="docs/screenshots/cont.PNG" width="200"/></td>
+    <td><img src="docs/screenshots/scn.PNG" width="200"/></td>
+  </tr>
+</table>
 
 ---
 
@@ -33,7 +45,7 @@ Powered by **React Native (Expo)**, **Node.js / Express**, **MongoDB**, and **Cl
 ## 🐰 About Me
 Hi! I’m **Hein Htet Moe Tun (Hyan)** ✨  
 This repo is my senior project submission — part academic, part portfolio, part fun.  
-I love blending **clean design** with a touch of 🌲 kawai energy ⛩️.  
+I love blending **clean design** with a touch of 🐰 kawai energy 🥕.  
 
 ---
 
@@ -45,7 +57,15 @@ git clone https://github.com/heinhtetmoetun/SP1-CardLink
 # install deps
 cd sp1-cardlink-hyan
 npm install
+
+#install modules
 do not forget to install modules ^^
+npm install \
+expo-router \
+nativewind react-native-safe-area-context react-native-gesture-handler react-native-reanimated \
+react-native-vector-icons @expo/vector-icons \
+expo-camera expo-image-manipulator expo-file-system expo-secure-store expo-linear-gradient \
+react-native-paper
 
 # start app
 npx expo start
