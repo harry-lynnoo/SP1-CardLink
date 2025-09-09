@@ -1,3 +1,5 @@
+
+ 
 //pull shark
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -27,14 +29,14 @@ import {
 } from "react-native";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+ 
 /* ---------- Theme ---------- */
 const BRAND_BLUE = "#213BBB";
 const LIGHT_BG = "#F6F7FB";
 const CARD_BORDER = "#bfdbfe";
 const ICON_BLUE = "#1996fc";
 const STAR_YELLOW = "#F4C430";
-
+ 
 /* ---------- Types ---------- */
 type Contact = {
   cardImage: string;
@@ -52,14 +54,14 @@ type Contact = {
   additionalPhones?: string[];
   createdAt?: string;
 };
-
+ 
 export default function Contacts() {
   const navigation = useNavigation();
   const router = useRouter();
-
+ 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-
+ 
   // filter/search UI state
   const [filterOpen, setFilterOpen] = useState(false);
   const [showFavOnly, setShowFavOnly] = useState(false);
@@ -68,12 +70,12 @@ export default function Contacts() {
   const [company, setCompany] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"newest" | "az" | "company">("newest");
   const [query, setQuery] = useState("");
-
+ 
   useLayoutEffect(() => {
     // @ts-ignore
     navigation.setOptions?.({ headerShown: false });
   }, [navigation]);
-
+ 
   useEffect(() => {
     const fetchContacts = async () => {
       const token = await SecureStore.getItemAsync("userToken");
@@ -91,7 +93,7 @@ export default function Contacts() {
     };
     fetchContacts();
   }, []);
-
+ 
   // companies for filter
   const companies = useMemo(() => {
     const set = new Set(
@@ -101,9 +103,9 @@ export default function Contacts() {
     );
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [contacts]);
-
+ 
   const norm = (s?: string) => (s || "").toLowerCase().trim();
-
+ 
   // filtered + searched list
   const displayed = useMemo(() => {
     let base = [...contacts];
@@ -130,7 +132,7 @@ export default function Contacts() {
     if (hasPhone) base = base.filter((c) => !!c.phone?.trim());
     if (hasEmail) base = base.filter((c) => !!c.email?.trim());
     if (company) base = base.filter((c) => c.company?.trim() === company);
-
+ 
     if (sortBy === "az") {
       base.sort((a, b) =>
         `${a.firstName} ${a.lastName}`.localeCompare(
@@ -148,7 +150,7 @@ export default function Contacts() {
     }
     return base;
   }, [contacts, showFavOnly, hasPhone, hasEmail, company, sortBy, query]);
-
+ 
   /* ---------- Favorite toggle ---------- */
   const toggleFavorite = async (contact: Contact) => {
     setContacts((prev) =>
@@ -178,7 +180,7 @@ export default function Contacts() {
       Alert.alert("Error", "Could not update favorite.");
     }
   };
-
+ 
   /* ---------- Delete ---------- */
   const confirmDelete = (contactId: string) => {
     Alert.alert("Delete Contact", "Are you sure you want to delete this contact?", [
@@ -199,7 +201,7 @@ export default function Contacts() {
       Alert.alert("Error", "Something went wrong.");
     }
   };
-
+ 
   /* ---------- Call ---------- */
   const normalizePhone = (n: string) => n.replace(/[()\-\s]/g, "");
   const getAllNumbers = (c: Contact) =>
@@ -210,7 +212,7 @@ export default function Contacts() {
           .filter(Boolean)
       )
     );
-
+ 
   const openDialer = (raw?: string) => {
     if (!raw) {
       Alert.alert("No phone", "This contact has no phone number.");
@@ -221,7 +223,7 @@ export default function Contacts() {
       Alert.alert("Error", "Could not open dialer.")
     );
   };
-
+ 
   const chooseAndCall = (c: Contact) => {
     const nums = getAllNumbers(c);
     if (nums.length === 0) {
@@ -256,7 +258,7 @@ export default function Contacts() {
       );
     }
   };
-
+ 
   /* ---------- Swipe actions ---------- */
   const renderLeftActions = (_p: any, _x: any, onCall: () => void, hasAny: boolean) => (
     <TouchableOpacity
@@ -295,7 +297,7 @@ export default function Contacts() {
       <Text style={{ color: "white", marginTop: 4 }}>Delete</Text>
     </TouchableOpacity>
   );
-
+ 
   /* ---------- List Item (Home-style name) ---------- */
   const renderItem = useCallback(
     ({ item: c }: { item: Contact }) => (
@@ -339,7 +341,7 @@ export default function Contacts() {
                   {(c.lastName?.[0] || "").toUpperCase()}
                 </Text>
               </View>
-
+ 
               <View style={{ marginLeft: 12, flex: 1 }}>
                 {/* ✅ EXACTLY like Home: 18 / 700 / blue-900 */}
                 <Text style={styles.nameHomeLike}>
@@ -349,7 +351,7 @@ export default function Contacts() {
                   <Text style={styles.subtitleHomeLike}>{c.nickname}</Text>
                 )}
               </View>
-
+ 
               {/* Favorite pill */}
               <TouchableOpacity
                 onPress={() => toggleFavorite(c)}
@@ -363,7 +365,7 @@ export default function Contacts() {
                 />
               </TouchableOpacity>
             </View>
-
+ 
             {/* details */}
             <View style={{ marginTop: 10 }}>
               <View style={styles.row}>
@@ -387,7 +389,7 @@ export default function Contacts() {
     ),
     [router]
   );
-
+ 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: LIGHT_BG }}>
       {/* Header */}
@@ -396,7 +398,7 @@ export default function Contacts() {
           Contacts
         </Text>
       </View>
-
+ 
       {/* Search + filter */}
       <View style={{ backgroundColor: LIGHT_BG, paddingBottom: 8 }}>
         <View className="px-4 mt-3">
@@ -433,7 +435,7 @@ export default function Contacts() {
           </View>
         </View>
       </View>
-
+ 
       {/* List */}
       <View
         style={{
@@ -464,7 +466,7 @@ export default function Contacts() {
           />
         )}
       </View>
-
+ 
       {/* Filter sheet */}
       {filterOpen && (
         <Pressable
@@ -490,7 +492,7 @@ export default function Contacts() {
             onPress={(e) => e.stopPropagation()}
           >
             <Text className="text-base font-nunito mb-3">Filters</Text>
-
+ 
             <ToggleRow
               label="Favorites only"
               checked={showFavOnly}
@@ -506,7 +508,7 @@ export default function Contacts() {
               checked={hasEmail}
               onPress={() => setHasEmail((v) => !v)}
             />
-
+ 
             {companies.length > 0 && (
               <>
                 <Divider />
@@ -528,7 +530,7 @@ export default function Contacts() {
                 </View>
               </>
             )}
-
+ 
             <Divider />
             <Text className="text-base font-nunito mb-2">Sort by</Text>
             <View style={{ flexDirection: "row", columnGap: 10, flexWrap: "wrap" }}>
@@ -548,7 +550,7 @@ export default function Contacts() {
                 onPress={() => setSortBy("company")}
               />
             </View>
-
+ 
             <View
               style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 14 }}
             >
@@ -561,13 +563,13 @@ export default function Contacts() {
           </Pressable>
         </Pressable>
       )}
-
+ 
       {/* Bottom nav embedded (Option 1) */}
       <BottomNav />
     </SafeAreaView>
   );
 }
-
+ 
 /* ---------- Styles (match Home card) ---------- */
 const styles = StyleSheet.create({
   card: {
@@ -617,7 +619,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
-
+ 
 /* ---------- Helpers ---------- */
 function Divider() {
   return (
@@ -690,13 +692,13 @@ function CompanyChip({
     </TouchableOpacity>
   );
 }
-
+ 
 /* ---------- BottomNav (embedded here) ---------- */
 function BottomNav({ hidden }: { hidden?: boolean }) {
   if (hidden) return null;
   const pathname = usePathname();
   const router = useRouter();
-
+ 
   const active: "home" | "contacts" | "calendar" | "profile" =
     pathname.startsWith("/profile")
       ? "profile"
@@ -705,7 +707,7 @@ function BottomNav({ hidden }: { hidden?: boolean }) {
       : pathname.startsWith("/contact")
       ? "contacts"
       : "home";
-
+ 
   const Item = ({
     isActive,
     onPress,
@@ -746,7 +748,7 @@ function BottomNav({ hidden }: { hidden?: boolean }) {
         <FontAwesome name={icon} size={20} color="#FFFFFF" />
       </TouchableOpacity>
     );
-
+ 
   return (
     <View
       style={{ position: "absolute", left: 20, right: 20, bottom: 24, alignItems: "center" }}
@@ -777,3 +779,5 @@ function BottomNav({ hidden }: { hidden?: boolean }) {
     </View>
   );
 }
+ 
+ 

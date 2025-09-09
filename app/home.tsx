@@ -21,7 +21,7 @@ import {
 } from "react-native";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+ 
 type Contact = {
   cardImage?: string;
   _id: string;
@@ -38,36 +38,36 @@ type Contact = {
   additionalPhones?: string[];
   createdAt?: string;
 };
-
+ 
 const BRAND_BLUE = "#213BBB";
 const LIGHT_PANEL = "#CFE4FF";
 const ICON_BLUE = "#1996fc";
 const CARD_BORDER = "#bfdbfe";
 const STAR_YELLOW = "#F4C430";
 const safe = (v?: string) => (v && v.trim().length ? v : "—");
-
+ 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [recentContacts, setRecentContacts] = useState<Contact[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const lottieRef = useRef<LottieView>(null);
-
+ 
   useLayoutEffect(() => {
     // @ts-ignore
     navigation.setOptions?.({ headerShown: false });
   }, []);
-
+ 
   useEffect(() => {
     fetchRecentContacts();
   }, []);
-
+ 
   useFocusEffect(
     useCallback(() => {
       fetchRecentContacts();
       return undefined;
     }, [])
   );
-
+ 
   const fetchRecentContacts = async () => {
     try {
       const token = await SecureStore.getItemAsync("userToken");
@@ -80,23 +80,23 @@ export default function HomeScreen() {
       console.error("Failed to fetch recent contacts:", e);
     }
   };
-
+ 
   const openCamera = () => {
     setSheetOpen(false);
     router.push("/scan");
   };
-
+ 
   const openGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
       allowsEditing: false,
     });
-
+ 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       const dest = FileSystem.documentDirectory + "selected.jpg";
-
+ 
       try {
         await FileSystem.copyAsync({ from: uri, to: dest });
         setSheetOpen(false);
@@ -106,7 +106,7 @@ export default function HomeScreen() {
       }
     }
   };
-
+ 
   /* ---------- Favorites / Call / Delete (same as Contacts) ---------- */
   const toggleFavorite = async (contact: Contact) => {
     setRecentContacts((prev) =>
@@ -127,11 +127,11 @@ export default function HomeScreen() {
       Alert.alert("Error", "Could not update favorite.");
     }
   };
-
+ 
   const normalizePhone = (n: string) => n.replace(/[()\-\s]/g, "");
   const getAllNumbers = (c: Contact) =>
     Array.from(new Set([c.phone, ...(c.additionalPhones || [])].map(n => (n || "").trim()).filter(Boolean)));
-
+ 
   const openDialer = (raw?: string) => {
     if (!raw) {
       Alert.alert("No phone", "This contact has no phone number.");
@@ -140,7 +140,7 @@ export default function HomeScreen() {
     const url = `tel:${normalizePhone(raw)}`;
     Linking.openURL(url).catch(() => Alert.alert("Error", "Could not open dialer."));
   };
-
+ 
   const chooseAndCall = (c: Contact) => {
     const nums = getAllNumbers(c);
     if (nums.length === 0) return Alert.alert("No phone", "This contact has no phone number.");
@@ -157,13 +157,13 @@ export default function HomeScreen() {
       ]);
     }
   };
-
+ 
   const confirmDelete = (contactId: string) =>
     Alert.alert("Delete Contact", "Are you sure you want to delete this contact?", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: () => handleDelete(contactId) },
     ]);
-
+ 
   const handleDelete = async (contactId: string) => {
     try {
       const token = await SecureStore.getItemAsync("userToken");
@@ -177,7 +177,7 @@ export default function HomeScreen() {
       Alert.alert("Error", "Something went wrong.");
     }
   };
-
+ 
   const renderLeftActions = (_p: any, _x: any, onCall: () => void, hasAny: boolean) => (
     <TouchableOpacity
       onPress={onCall}
@@ -213,14 +213,14 @@ export default function HomeScreen() {
       <Text style={{ color: "white", marginTop: 4 }}>Delete</Text>
     </TouchableOpacity>
   );
-
+ 
   return (
     <SafeAreaView className="flex-1 bg-white">
       {/* Top Bar (no filter icon here) */}
       <View style={{ backgroundColor: BRAND_BLUE }} className="px-4 py-6 flex-row items-center">
         <Text className="text-white text-2xl font-nunito">CardLink</Text>
       </View>
-
+ 
       {/* Header panel with animation */}
       <View style={{ backgroundColor: LIGHT_PANEL }} className="items-center py-8">
         <LottieView
@@ -230,7 +230,7 @@ export default function HomeScreen() {
           loop
           style={{ width: 240, height: 160 }}
         />
-
+ 
         {/* Primary action */}
         <TouchableOpacity
           onPress={() => setSheetOpen(true)}
@@ -253,7 +253,7 @@ export default function HomeScreen() {
           <Text className="text-white text-[16px] font-semibold ml-2">Add Business Card</Text>
         </TouchableOpacity>
       </View>
-
+ 
       {/* Recent header */}
       <View className="px-4 py-3 flex-row justify-between items-center">
         <Text className="text-lg font-semibold text-gray-700">Recent</Text>
@@ -263,7 +263,7 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-
+ 
       {/* Recent list — SAME CARD LOOK + star + swipe */}
       <ScrollView className="px-4 mb-24">
         {recentContacts.map((c) => (
@@ -319,7 +319,7 @@ export default function HomeScreen() {
                       {(c.lastName?.[0] || "").toUpperCase()}
                     </Text>
                   </View>
-
+ 
                   <View className="ml-3 flex-1">
                     <Text className="text-xl font-bold text-blue-900 font-nunito">
                       {c.firstName} {c.lastName}
@@ -327,7 +327,7 @@ export default function HomeScreen() {
                     {/* nickname ONLY if it exists */}
                     {!!c.nickname && <Text className="text-xs text-gray-500">{c.nickname}</Text>}
                   </View>
-
+ 
                   {/* Favorite pill (same on both screens) */}
                   <TouchableOpacity
                     onPress={() => toggleFavorite(c)}
@@ -350,7 +350,7 @@ export default function HomeScreen() {
                     />
                   </TouchableOpacity>
                 </View>
-
+ 
                 <View className="mt-3">
                   <View className="flex-row items-center mb-1">
                     <FontAwesome name="phone" size={14} color={ICON_BLUE} />
@@ -370,7 +370,7 @@ export default function HomeScreen() {
           </Swipeable>
         ))}
       </ScrollView>
-
+ 
       {/* Themed Bottom Sheet */}
       <Modal transparent visible={sheetOpen} animationType="fade" onRequestClose={() => setSheetOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.25)" }} onPress={() => setSheetOpen(false)}>
@@ -388,7 +388,7 @@ export default function HomeScreen() {
               <View style={{ alignItems: "center", paddingVertical: 8 }}>
                 <View style={{ width: 40, height: 4, backgroundColor: "#e5e7eb", borderRadius: 999 }} />
               </View>
-
+ 
               <Pressable
                 onPress={openCamera}
                 style={{
@@ -407,7 +407,7 @@ export default function HomeScreen() {
                 <FontAwesome name="camera" size={16} color={BRAND_BLUE} />
                 <Text style={{ marginLeft: 8, fontSize: 15, color: BRAND_BLUE }}>Scan with Camera</Text>
               </Pressable>
-
+ 
               <Pressable
                 onPress={openGallery}
                 style={{
@@ -429,18 +429,18 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </Modal>
-
+ 
       <BottomNav />
     </SafeAreaView>
   );
 }
-
+ 
 /* ---------- BottomNav ---------- */
 function BottomNav({ hidden }: { hidden?: boolean }) {
   if (hidden) return null;
   const pathname = usePathname();
   const router = useRouter();
-
+ 
   const active: "home" | "contacts" | "calendar" | "profile" =
     pathname.startsWith("/profile")
       ? "profile"
@@ -449,7 +449,7 @@ function BottomNav({ hidden }: { hidden?: boolean }) {
       : pathname.startsWith("/contact")
       ? "contacts"
       : "home";
-
+ 
   const Item = ({
     isActive, onPress, icon,
   }: {
@@ -476,7 +476,7 @@ function BottomNav({ hidden }: { hidden?: boolean }) {
         <FontAwesome name={icon} size={20} color="#FFFFFF" />
       </TouchableOpacity>
     );
-
+ 
   return (
     <View style={{ position: "absolute", left: 20, right: 20, bottom: 24, alignItems: "center" }} pointerEvents="box-none">
       <View
@@ -504,3 +504,4 @@ function BottomNav({ hidden }: { hidden?: boolean }) {
     </View>
   );
 }
+ 

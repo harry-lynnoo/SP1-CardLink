@@ -1,5 +1,5 @@
 // app/crop.tsx
-//pull shark
+// pull shark
 import { FontAwesome } from "@expo/vector-icons";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -42,9 +42,13 @@ const BORDER = "rgba(33,59,187,0.12)";
 const CLOUD_NAME = "dwmav1imw";
 const UPLOAD_PRESET = "ml_default";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-const frameWidth = screenWidth * 0.9;
-const frameHeight = frameWidth * 0.6;
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+
+// One preview wrapper we measure and align everything to
+const PREVIEW_H = SCREEN_H * 0.68;
+// Your target crop frame ratio
+const FRAME_W = SCREEN_W * 0.9;
+const FRAME_H = FRAME_W * 0.6;
 
 export default function CropScreen() {
   const { imageUri } = useLocalSearchParams();
@@ -52,11 +56,17 @@ export default function CropScreen() {
   const navigation = useNavigation();
   const [processing, setProcessing] = useState(false);
 
+  // Measured preview wrapper (the box the image is drawn into)
+  const [previewLayout, setPreviewLayout] = useState<{
+    x: number; y: number; width: number; height: number;
+  } | null>(null);
+
   useLayoutEffect(() => {
+    // @ts-ignore
     navigation.setOptions({ headerShown: false });
   }, []);
 
-  // ===== Gestures (unchanged) =====
+  // ===== Gestures =====
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -67,13 +77,9 @@ export default function CropScreen() {
     PinchGestureHandlerGestureEvent,
     { startScale: number }
   >({
-    onStart: (_, ctx) => {
-      ctx.startScale = scale.value;
-    },
-    onActive: (event, ctx) => {
-      if (event.numberOfPointers >= 2) {
-        scale.value = ctx.startScale * event.scale;
-      }
+    onStart: (_, ctx) => { ctx.startScale = scale.value; },
+    onActive: (e, ctx) => {
+      if (e.numberOfPointers >= 2) scale.value = ctx.startScale * e.scale;
     },
   });
 
@@ -85,9 +91,9 @@ export default function CropScreen() {
       ctx.startX = translateX.value;
       ctx.startY = translateY.value;
     },
-    onActive: (event, ctx) => {
-      translateX.value = ctx.startX + event.translationX;
-      translateY.value = ctx.startY + event.translationY;
+    onActive: (e, ctx) => {
+      translateX.value = ctx.startX + e.translationX;
+      translateY.value = ctx.startY + e.translationY;
     },
   });
 
@@ -99,7 +105,7 @@ export default function CropScreen() {
     ],
   }));
 
-  // ===== Upload helper (unchanged) =====
+  // ===== Upload helper =====
   const uploadToCloudinary = async (uri: string) => {
     const base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
@@ -117,47 +123,70 @@ export default function CropScreen() {
     throw new Error("Cloudinary upload failed: " + JSON.stringify(json));
   };
 
-  // ===== Confirm (unchanged) =====
+  // ===== Confirm (contain-aware, center-origin scale corrected) =====
   const handleConfirm = async () => {
-    if (!imageUri) return;
+    if (!imageUri || !previewLayout) return;
+
     try {
       setProcessing(true);
 
-      const imgInfo = await ImageManipulator.manipulateAsync(imageUri as string, []);
-      const imgWidth = imgInfo.width;
-      const imgHeight = imgInfo.height;
+      // 1) Original image size
+      const info = await ImageManipulator.manipulateAsync(imageUri as string, []);
+      const imgW = info.width;
+      const imgH = info.height;
 
-      const frameX = (screenWidth - frameWidth) / 2;
-      const frameY = screenHeight / 2 - frameHeight / 2;
+      // 2) Preview wrapper (measured)
+      const pvX = previewLayout.x, pvY = previewLayout.y;
+      const pvW = previewLayout.width, pvH = previewLayout.height;
 
-      const scaleX = imgWidth / screenWidth;
-      const scaleY = imgHeight / screenHeight;
+      // 3) contain(): displayed size inside wrapper
+      const baseS = Math.min(pvW / imgW, pvH / imgH);
+      const dispW = imgW * baseS;
+      const dispH = imgH * baseS;
 
-      const currentScale = scale.value;
-      const offsetX = translateX.value * scaleX;
-      const offsetY = translateY.value * scaleY;
+      // 4) image top-left before transforms (centered)
+      const imgLeft0 = pvX + (pvW - dispW) / 2;
+      const imgTop0  = pvY + (pvH - dispH) / 2;
 
-      const cropRegion = {
-        originX: Math.max(0, frameX * scaleX - offsetX),
-        originY: Math.max(0, frameY * scaleY - offsetY),
-        width: Math.min(imgWidth, (frameWidth * scaleX) / currentScale),
-        height: Math.min(imgHeight, (frameHeight * scaleY) / currentScale),
-      };
+      // 5) apply pinch + pan WITH CENTER-ORIGIN SCALE CORRECTION
+      const curScale = scale.value;
+      const pvCX = pvX + pvW / 2;
+      const pvCY = pvY + pvH / 2;
 
+      // When scaling around the center, the top-left shifts by (1 - scale) * center.
+      // Final drawn top-left after scale & pan:
+      const imgLeft = imgLeft0 * curScale + (1 - curScale) * pvCX + translateX.value;
+      const imgTop  = imgTop0  * curScale + (1 - curScale) * pvCY + translateY.value;
+
+      // 6) frame rect centered INSIDE wrapper
+      const frameX = pvX + (pvW - FRAME_W) / 2;
+      const frameY = pvY + (pvH - FRAME_H) / 2;
+
+      // 7) map frame -> original pixels
+      const pxPerDisp = 1 / (baseS * curScale);
+      let originX = (frameX - imgLeft) * pxPerDisp;
+      let originY = (frameY - imgTop)  * pxPerDisp;
+      let cropW   = FRAME_W  * pxPerDisp;
+      let cropH   = FRAME_H  * pxPerDisp;
+
+      // integerize + clamp
+      originX = Math.max(0, Math.min(Math.floor(originX), imgW - 1));
+      originY = Math.max(0, Math.min(Math.floor(originY), imgH - 1));
+      cropW   = Math.max(1, Math.min(Math.floor(cropW), imgW - originX));
+      cropH   = Math.max(1, Math.min(Math.floor(cropH), imgH - originY));
+
+      // 8) Crop
       const cropped = await ImageManipulator.manipulateAsync(
         imageUri as string,
-        [{ crop: cropRegion }],
+        [{ crop: { originX, originY, width: cropW, height: cropH } }],
         { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
       );
 
       const cloudUrl = await uploadToCloudinary(cropped.uri);
 
-      router.replace({
-        pathname: "/add-contact",
-        params: { imageUri: cloudUrl },
-      });
-    } catch (err) {
-      console.error("❌ Crop/upload failed:", err);
+      router.replace({ pathname: "/add-contact", params: { imageUri: cloudUrl } });
+    } catch (e) {
+      console.error("❌ Crop/upload failed:", e);
     } finally {
       setProcessing(false);
     }
@@ -166,7 +195,7 @@ export default function CropScreen() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
-        {/* Header (rounded bottom, no separate banner) */}
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
             <FontAwesome name="arrow-left" size={18} color="#fff" />
@@ -175,38 +204,47 @@ export default function CropScreen() {
           <View style={{ width: 36, height: 36, opacity: 0 }} />
         </View>
 
-        {/* Optional soft strip to echo Home but integrated */}
         <View style={styles.headerUnderlay} />
 
         {/* Workspace */}
         <View style={styles.canvasWrap}>
           {imageUri ? (
-            <PinchGestureHandler
-              ref={pinchRef}
-              onGestureEvent={pinchHandler}
-              simultaneousHandlers={panRef}
+            // PREVIEW WRAPPER — we measure THIS and the FRAME is centered inside THIS
+            <View
+              style={styles.previewWrapper}
+              onLayout={(e) => setPreviewLayout(e.nativeEvent.layout)}
             >
-              <Animated.View style={{ flex: 1 }}>
-                <PanGestureHandler
-                  ref={panRef}
-                  onGestureEvent={panHandler}
-                  simultaneousHandlers={pinchRef}
-                >
-                  <Animated.View style={[animatedStyle]}>
-                    <Image
-                      source={{ uri: imageUri as string }}
-                      style={styles.preview}
-                    />
-                  </Animated.View>
-                </PanGestureHandler>
-              </Animated.View>
-            </PinchGestureHandler>
+              <PinchGestureHandler
+                ref={pinchRef}
+                onGestureEvent={pinchHandler}
+                simultaneousHandlers={panRef}
+              >
+                <Animated.View style={{ flex: 1 }}>
+                  <PanGestureHandler
+                    ref={panRef}
+                    onGestureEvent={panHandler}
+                    simultaneousHandlers={pinchRef}
+                  >
+                    <Animated.View
+                      style={[StyleSheet.absoluteFillObject, animatedStyle]}
+                    >
+                      <Image
+                        source={{ uri: imageUri as string }}
+                        style={styles.previewImage}
+                      />
+                    </Animated.View>
+                  </PanGestureHandler>
+                </Animated.View>
+              </PinchGestureHandler>
+
+              {/* Center the frame via a full-bleed flex container */}
+              <View pointerEvents="none" style={styles.frameCenter}>
+                <View style={styles.cardFrame} />
+              </View>
+            </View>
           ) : (
             <Text style={styles.emptyText}>No image loaded</Text>
           )}
-
-          {/* Blue card frame */}
-          <View style={styles.cardFrame} pointerEvents="none" />
 
           {/* Hint */}
           <View style={styles.hint}>
@@ -225,7 +263,7 @@ export default function CropScreen() {
             <Text style={styles.secondaryText}>Cancel</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+        <TouchableOpacity
             style={[styles.primaryBtn, processing && { opacity: 0.7 }]}
             onPress={handleConfirm}
             disabled={processing}
@@ -245,14 +283,10 @@ export default function CropScreen() {
   );
 }
 
-// ===== Styles (visual only) =====
+// ===== Styles =====
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
 
-  // Blue header with rounded bottom edges
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -263,51 +297,46 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
   },
   headerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
   },
   headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Nunito",
-    letterSpacing: 0.2,
+    flex: 1, textAlign: "center", color: "#fff", fontSize: 16, fontFamily: "Nunito", letterSpacing: 0.2,
   },
-
-  // A tiny underlay to create a smooth visual transition under the rounded header
   headerUnderlay: {
-    height: 18,
-    backgroundColor: BG_LIGHT,
-    marginTop: -8,
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
+    height: 18, backgroundColor: BG_LIGHT, marginTop: -8,
+    borderBottomLeftRadius: 18, borderBottomRightRadius: 18,
   },
 
-  canvasWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  canvasWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
 
-  preview: {
-    width: screenWidth,
-    height: screenHeight * 0.68,
+  previewWrapper: {
+    width: SCREEN_W,
+    height: PREVIEW_H,
+    alignSelf: "center",
+    position: "relative",
+    overflow: "hidden",
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
     resizeMode: "contain",
   },
 
+  // Center the frame using flex in a full-bleed absolute layer
+  frameCenter: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   cardFrame: {
-    position: "absolute",
-    width: frameWidth,
-    height: frameHeight,
+    width: FRAME_W,
+    height: FRAME_H,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: BRAND_BLUE,
+    backgroundColor: "transparent",
     ...shadow(8),
   },
 
@@ -321,64 +350,32 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
   },
-  hintText: {
-    color: TEXT_MUTED,
-    fontFamily: "Nunito",
-    fontSize: 12.5,
-    letterSpacing: 0.3,
-  },
+  hintText: { color: TEXT_MUTED, fontFamily: "Nunito", fontSize: 12.5, letterSpacing: 0.3 },
 
-  emptyText: {
-    color: TEXT_PRIMARY,
-    fontFamily: "Nunito",
-  },
+  emptyText: { color: TEXT_PRIMARY, fontFamily: "Nunito" },
 
   bottomBar: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: BORDER,
-    backgroundColor: "#FFF",
+    paddingHorizontal: 18, paddingVertical: 14,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#FFF",
   },
 
   secondaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: BORDER,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingVertical: 10, paddingHorizontal: 16,
+    borderRadius: 14, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: BORDER,
   },
-  secondaryText: {
-    color: BRAND_BLUE,
-    fontFamily: "Nunito",
-    fontSize: 14,
-  },
+  secondaryText: { color: BRAND_BLUE, fontFamily: "Nunito", fontSize: 14 },
 
   primaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    backgroundColor: BRAND_BLUE,
-    ...shadow(10),
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingVertical: 12, paddingHorizontal: 20,
+    borderRadius: 16, backgroundColor: BRAND_BLUE, ...shadow(10),
   },
-  primaryText: {
-    color: "#FFFFFF",
-    fontFamily: "Nunito",
-    fontSize: 14,
-  },
+  primaryText: { color: "#FFFFFF", fontFamily: "Nunito", fontSize: 14 },
 });
 
-// subtle cross-platform shadow similar to your cards
+// subtle cross-platform shadow like your cards
 function shadow(radius: number) {
   if (Platform.OS === "android") {
     return { elevation: Math.min(12, Math.max(2, Math.round(radius))) };

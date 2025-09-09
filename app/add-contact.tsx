@@ -1,5 +1,5 @@
 // app/add-contact.tsx
-//pull shark
+// pull shark
 import { FontAwesome } from "@expo/vector-icons";
 import {
   useLocalSearchParams,
@@ -9,6 +9,7 @@ import {
 import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useLayoutEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -23,7 +24,6 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 const BRAND_BLUE = "#213BBB";
 
-// normalize expo-router param (string | string[] | undefined)
 function useParamString(name: string) {
   const params = useLocalSearchParams<Record<string, string | string[] | undefined>>();
   const value = params[name];
@@ -35,7 +35,9 @@ export default function AddContactScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const imageUri = useParamString("imageUri"); // may be local file or Cloudinary URL
+  const imageUri = useParamString("imageUri");
+
+  const [ocrLoading, setOcrLoading] = useState(false);
 
   const [contact, setContact] = useState({
     firstName: "",
@@ -48,22 +50,21 @@ export default function AddContactScreen() {
     website: "",
     notes: "",
     additionalPhones: [] as string[],
-    cardImage: imageUri || "", // store scanned card image
+    cardImage: imageUri || "",
   });
 
   useLayoutEffect(() => {
-    // @ts-ignore (expo-router typing differences)
+    // @ts-ignore
     navigation.setOptions?.({ headerShown: false });
   }, [navigation]);
 
-  // 🔍 Run OCR on the provided image URL (prefill fields)
   useEffect(() => {
-    if (imageUri) {
-      handleOCR(imageUri);
-    }
+    if (imageUri) handleOCR(imageUri);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageUri]);
 
   const handleOCR = async (cloudinaryUrl: string) => {
+    setOcrLoading(true);
     try {
       const token = await SecureStore.getItemAsync("userToken");
       const response = await fetch("https://cardlink.onrender.com/api/ocr", {
@@ -101,12 +102,14 @@ export default function AddContactScreen() {
     } catch (error: any) {
       console.error("❌ OCR error:", error);
       Alert.alert("Error", error.message || "OCR processing failed");
+    } finally {
+      setOcrLoading(false);
     }
   };
 
-  // 💾 Save contact with duplicate check
   const handleSave = async () => {
-    // basic validations (keep friend’s UX)
+    if (ocrLoading) return;
+
     if (!contact.firstName.trim() && !contact.lastName.trim()) {
       Alert.alert("Missing Info", "Please enter at least a first or last name.");
       return;
@@ -125,7 +128,6 @@ export default function AddContactScreen() {
     const contactToSave = { ...contact, additionalPhones: contact.additionalPhones };
 
     try {
-      // 1) load existing for duplicate check
       const resAll = await fetch("https://cardlink.onrender.com/api/contacts", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -134,7 +136,6 @@ export default function AddContactScreen() {
         throw new Error("Could not load contacts for duplicate check");
       }
 
-      // 2) find duplicate by email/phone
       const duplicate = existing.find(
         (c: any) =>
           (c.email && contactToSave.email && c.email === contactToSave.email) ||
@@ -147,18 +148,8 @@ export default function AddContactScreen() {
           `${contactToSave.firstName} ${contactToSave.lastName} already exists. Replace it with the latest info?`,
           [
             { text: "Cancel", style: "cancel" },
-            {
-              text: "Keep Both",
-              onPress: async () => {
-                await actuallySave(token, contactToSave);
-              },
-            },
-            {
-              text: "Replace",
-              onPress: async () => {
-                await replaceContact(token, duplicate._id, contactToSave);
-              },
-            },
+            { text: "Keep Both", onPress: async () => await actuallySave(token, contactToSave) },
+            { text: "Replace", onPress: async () => await replaceContact(token, duplicate._id, contactToSave) },
           ]
         );
       } else {
@@ -169,7 +160,6 @@ export default function AddContactScreen() {
     }
   };
 
-  // helper: save normally
   const actuallySave = async (token: string, contactToSave: any) => {
     try {
       const res = await fetch("https://cardlink.onrender.com/api/contacts", {
@@ -192,7 +182,6 @@ export default function AddContactScreen() {
     }
   };
 
-  // helper: replace existing contact
   const replaceContact = async (token: string, id: string, newData: any) => {
     try {
       const res = await fetch(`https://cardlink.onrender.com/api/contacts/${id}`, {
@@ -257,21 +246,49 @@ export default function AddContactScreen() {
                 marginBottom: 14,
                 borderWidth: 1,
                 borderColor: "#E7ECFF",
+                position: "relative",
+                overflow: "hidden",
               }}
             >
               <Text style={{ fontWeight: "600", color: "#334155", marginBottom: 8 }}>
                 Scanned Card
               </Text>
+
+              {/* IMPORTANT: show exactly what we have (no extra crop). */}
               <Image
                 source={{ uri: String(imageUri) }}
                 style={{
                   width: "100%",
-                  height: 180,
+                  height: 190,
                   borderRadius: 12,
                   backgroundColor: "#f1f5f9",
                 }}
-                resizeMode="cover"
+                resizeMode="contain"
               />
+
+              {ocrLoading && (
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: "absolute",
+                    top: 12 + 22,
+                    left: 12,
+                    right: 12,
+                    bottom: 12,
+                    borderRadius: 12,
+                    backgroundColor: "rgba(255,255,255,0.85)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
+                  <ActivityIndicator size="large" color={BRAND_BLUE} />
+                  <Text style={{ color: "#334155", fontWeight: "600" }}>Processing OCR…</Text>
+                  <Text style={{ color: "#64748b", fontSize: 12 }}>
+                    Extracting name, phone, email, and more
+                  </Text>
+                </View>
+              )}
             </View>
           ) : null}
 
@@ -283,6 +300,7 @@ export default function AddContactScreen() {
               padding: 14,
               borderWidth: 1,
               borderColor: "#E7ECFF",
+              opacity: ocrLoading ? 0.98 : 1,
             }}
           >
             <SectionLabel title="Identity" />
@@ -292,12 +310,14 @@ export default function AddContactScreen() {
                 value={contact.firstName}
                 onChangeText={(v) => setContact({ ...contact, firstName: v })}
                 icon="user"
+                editable={!ocrLoading}
               />
               <Input
                 label="Last Name"
                 value={contact.lastName}
                 onChangeText={(v) => setContact({ ...contact, lastName: v })}
                 icon="user"
+                editable={!ocrLoading}
               />
             </Row>
             <Input
@@ -305,12 +325,14 @@ export default function AddContactScreen() {
               value={contact.nickname}
               onChangeText={(v) => setContact({ ...contact, nickname: v })}
               icon="id-badge"
+              editable={!ocrLoading}
             />
             <Input
               label="Position"
               value={contact.position}
               onChangeText={(v) => setContact({ ...contact, position: v })}
               icon="briefcase"
+              editable={!ocrLoading}
             />
 
             <Divider />
@@ -322,8 +344,8 @@ export default function AddContactScreen() {
               value={contact.phone}
               onChangeText={(v) => setContact({ ...contact, phone: v })}
               icon="phone"
+              editable={!ocrLoading}
             />
-            {/* Additional Phones */}
             {contact.additionalPhones.map((num, idx) => (
               <Input
                 key={idx}
@@ -332,16 +354,18 @@ export default function AddContactScreen() {
                 value={num}
                 onChangeText={(v) => updateAdditionalPhone(idx, v)}
                 icon="phone"
+                editable={!ocrLoading}
               />
             ))}
             <TouchableOpacity
+              disabled={ocrLoading}
               onPress={() =>
                 setContact({
                   ...contact,
                   additionalPhones: [...contact.additionalPhones, ""],
                 })
               }
-              style={{ marginBottom: 8 }}
+              style={{ marginBottom: 8, opacity: ocrLoading ? 0.5 : 1 }}
             >
               <Text style={{ color: BRAND_BLUE, fontWeight: "600" }}>
                 + Add another phone
@@ -355,6 +379,7 @@ export default function AddContactScreen() {
               value={contact.email}
               onChangeText={(v) => setContact({ ...contact, email: v })}
               icon="envelope-o"
+              editable={!ocrLoading}
             />
 
             <Divider />
@@ -365,6 +390,7 @@ export default function AddContactScreen() {
               value={contact.company}
               onChangeText={(v) => setContact({ ...contact, company: v })}
               icon="building-o"
+              editable={!ocrLoading}
             />
             <Input
               label="Website"
@@ -373,6 +399,7 @@ export default function AddContactScreen() {
               value={contact.website}
               onChangeText={(v) => setContact({ ...contact, website: v })}
               icon="globe"
+              editable={!ocrLoading}
             />
 
             <Divider />
@@ -392,6 +419,7 @@ export default function AddContactScreen() {
               textAlignVertical="top"
               value={contact.notes}
               onChangeText={(v) => setContact({ ...contact, notes: v })}
+              editable={!ocrLoading}
               style={{
                 backgroundColor: "#f8fafc",
                 borderRadius: 12,
@@ -425,17 +453,30 @@ export default function AddContactScreen() {
         <TouchableOpacity
           onPress={handleSave}
           activeOpacity={0.9}
+          disabled={ocrLoading}
           style={{
             backgroundColor: BRAND_BLUE,
             borderRadius: 999,
             paddingVertical: 14,
             alignItems: "center",
             justifyContent: "center",
+            opacity: ocrLoading ? 0.6 : 1,
+            flexDirection: "row",
+            gap: 8,
           }}
         >
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>
-            Save Contact
-          </Text>
+          {ocrLoading ? (
+            <>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>
+                Please wait…
+              </Text>
+            </>
+          ) : (
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>
+              Save Contact
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
