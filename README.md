@@ -10,7 +10,7 @@ Powered by **React Native (Expo)**, **Node.js / Express**, **MongoDB**, and **Cl
 - 🥕 OCR + NLP for accurate field extraction  
 - 🥕 Organize, search, and favorite contacts  
 - 🥕 Cloud image storage with Cloudinary  
-- 🥕� Secure token-based authentication  
+- 🥕 Secure token-based authentication  
 
 ---
 
