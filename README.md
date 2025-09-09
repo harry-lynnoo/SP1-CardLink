@@ -58,8 +58,7 @@ git clone https://github.com/heinhtetmoetun/SP1-CardLink
 cd sp1-cardlink-hyan
 npm install
 
-#install modules
-do not forget to install modules ^^
+#install modules ^^
 npm install \
 expo-router \
 nativewind react-native-safe-area-context react-native-gesture-handler react-native-reanimated \
