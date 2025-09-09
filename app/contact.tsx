@@ -1,6 +1,7 @@
 
  
 //pull shark
+//HI NICE TO MEeT YOU
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { usePathname, useRouter } from "expo-router";
