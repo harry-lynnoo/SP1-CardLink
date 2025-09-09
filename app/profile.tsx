@@ -1,4 +1,5 @@
 // app/profile.tsx
+//pull shark
 import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation, usePathname, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";

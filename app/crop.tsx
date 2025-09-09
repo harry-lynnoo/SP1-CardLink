@@ -1,4 +1,5 @@
 // app/crop.tsx
+//pull shark
 import { FontAwesome } from "@expo/vector-icons";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useLayoutEffect, useRef, useState } from "react";

@@ -1,4 +1,5 @@
 // app/contact-detail.tsx
+//pull shark
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
