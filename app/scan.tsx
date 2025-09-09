@@ -1,3 +1,4 @@
+//pull shark
 import { FontAwesome } from "@expo/vector-icons";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import * as FileSystem from "expo-file-system";
